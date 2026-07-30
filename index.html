@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>인스타 이미지 리사이저</title>
+    <title>인스타 이미지 크기조절</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -12,7 +12,7 @@
             padding: 40px 20px;
         }
         .container {
-            max-width: 600px;
+            max-width: 700px;
             margin: 0 auto;
         }
         h1 { font-size: 24px; margin-bottom: 20px; }
@@ -21,14 +21,6 @@
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
-        }
-        input[type="file"] {
-            width: 100%;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-            background: white;
-            box-sizing: border-box;
         }
         .size-buttons {
             display: flex;
@@ -51,26 +43,61 @@
             color: white;
         }
         .size-buttons button:hover { background-color: #c9bda3; }
-        canvas {
-            max-width: 100%;
+
+        #dropZone {
+            border: 2px dashed #c9bda3;
             border-radius: 8px;
-            margin-top: 15px;
-            display: none;
+            padding: 30px;
+            text-align: center;
+            color: #888;
         }
-        #downloadBtn {
+        #dropZone p { margin: 0 0 12px 0; }
+        #dropZone .file-label {
+            display: inline-block;
+            padding: 10px 18px;
+            background-color: #8a7a5c;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #dropZone .limit-note { font-size: 12px; margin-top: 10px; color: #999; }
+
+        .results {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .result-item {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .result-item canvas {
+            max-width: 100%;
+            border-radius: 6px;
+            display: block;
+            margin: 0 auto;
+        }
+        .result-item .info {
+            margin-top: 8px;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+        }
+        .result-item .download-btn {
             width: 100%;
-            margin-top: 15px;
-            padding: 12px;
+            margin-top: 10px;
+            padding: 10px;
             background-color: #8a7a5c;
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 15px;
-            display: none;
+            font-size: 14px;
         }
-        #downloadBtn:hover { background-color: #75674d; }
-        #info { margin-top: 10px; font-size: 13px; color: #666; }
+        .result-item .download-btn:hover { background-color: #75674d; }
 
         @media (max-width: 600px) {
             body { padding: 20px 15px; }
@@ -81,38 +108,34 @@
 </head>
 <body>
     <div class="container">
-        <h1>인스타 이미지 크기조절</h1>
+        <h1>인스타 이미지 리사이저</h1>
 
         <div class="section">
-            <div id="dropZone" style="border: 2px dashed #c9bda3; border-radius: 8px; padding: 30px; text-align: center; color: #888;">
-                <p style="margin: 0 0 12px 0;">사진을 이곳에 끌어다 놓으세요</p>
-                <label for="imageInput" style="display: inline-block; padding: 10px 18px; background-color: #8a7a5c; color: white; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                    파일 선택
-                </label>
-                <input type="file" id="imageInput" accept="image/*" style="display: none;">
-            </div>
-
             <div class="size-buttons">
                 <button id="btn-feed" data-mode="feed" class="active">피드 게시물</button>
                 <button id="btn-story" data-mode="story">스토리</button>
             </div>
 
-            <canvas id="canvas"></canvas>
-            <div id="info"></div>
-            <button id="downloadBtn">다운로드</button>
+            <div id="dropZone" style="margin-top: 15px;">
+                <p>사진을 이곳에 끌어다 놓으세요 (최대 5장)</p>
+                <label for="imageInput" class="file-label">파일 선택</label>
+                <input type="file" id="imageInput" accept="image/*" multiple style="display: none;">
+                <div class="limit-note">한 번에 최대 5장까지 처리할 수 있어요</div>
+            </div>
         </div>
+
+        <div class="results" id="results"></div>
     </div>
 
     <script>
         const imageInput = document.getElementById("imageInput");
-        const canvas = document.getElementById("canvas");
-        const ctx = canvas.getContext("2d");
-        const downloadBtn = document.getElementById("downloadBtn");
-        const infoDiv = document.getElementById("info");
+        const dropZone = document.getElementById("dropZone");
+        const resultsDiv = document.getElementById("results");
         const sizeButtons = document.querySelectorAll(".size-buttons button");
 
-        let loadedImage = null;
+        const MAX_FILES = 5;
         let currentMode = "feed";
+        let loadedImages = []; // { img, fileName } 목록
 
         const FEED_WIDTH = 1080;
         const FEED_MIN_HEIGHT = 566;
@@ -120,34 +143,49 @@
         const STORY_WIDTH = 1080;
         const STORY_HEIGHT = 1920;
 
-        const dropZone = document.getElementById("dropZone");
+        sizeButtons.forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                sizeButtons.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentMode = btn.dataset.mode;
+                renderAll();
+            });
+        });
 
-        // 공통: 파일 하나를 받아서 이미지로 불러오는 함수
-        function loadImageFile(file) {
-            if (!file || !file.type.startsWith("image/")) {
+        function loadImageFiles(fileList) {
+            const files = Array.from(fileList).filter(f => f.type.startsWith("image/"));
+
+            if (files.length === 0) {
                 alert("이미지 파일만 업로드할 수 있어요.");
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const img = new Image();
-                img.onload = function () {
-                    loadedImage = img;
-                    drawImage();
+            if (files.length > MAX_FILES) {
+                alert(`한 번에 최대 ${MAX_FILES}장까지만 처리할 수 있어요. 처음 ${MAX_FILES}장만 사용할게요.`);
+            }
+
+            const limitedFiles = files.slice(0, MAX_FILES);
+            loadedImages = [];
+            resultsDiv.innerHTML = "";
+
+            limitedFiles.forEach(function (file) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = new Image();
+                    img.onload = function () {
+                        loadedImages.push({ img: img, fileName: file.name });
+                        renderAll();
+                    };
+                    img.src = e.target.result;
                 };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+                reader.readAsDataURL(file);
+            });
         }
 
-        // 기존 파일 선택 방식
         imageInput.addEventListener("change", function () {
-            const file = imageInput.files[0];
-            loadImageFile(file);
+            loadImageFiles(imageInput.files);
         });
 
-        // 드래그해서 올릴 때 영역 강조
         dropZone.addEventListener("dragover", function (e) {
             e.preventDefault();
             dropZone.style.backgroundColor = "#e4dcc9";
@@ -159,42 +197,46 @@
             dropZone.style.borderColor = "#c9bda3";
         });
 
-        // 실제로 파일을 놓았을 때
         dropZone.addEventListener("drop", function (e) {
             e.preventDefault();
             dropZone.style.backgroundColor = "";
             dropZone.style.borderColor = "#c9bda3";
-
-            const file = e.dataTransfer.files[0];
-            loadImageFile(file);
+            loadImageFiles(e.dataTransfer.files);
         });
-        // 모드 버튼 클릭 (피드 / 스토리)
-        sizeButtons.forEach(function (btn) {
-            btn.addEventListener("click", function () {
-                sizeButtons.forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
-                currentMode = btn.dataset.mode;
-                drawImage();
+
+        function renderAll() {
+            resultsDiv.innerHTML = "";
+
+            loadedImages.forEach(function (item, index) {
+                const wrapper = document.createElement("div");
+                wrapper.className = "result-item";
+
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+
+                const infoDiv = document.createElement("div");
+                infoDiv.className = "info";
+
+                const downloadBtn = document.createElement("button");
+                downloadBtn.className = "download-btn";
+                downloadBtn.textContent = "다운로드";
+
+                wrapper.appendChild(canvas);
+                wrapper.appendChild(infoDiv);
+                wrapper.appendChild(downloadBtn);
+                resultsDiv.appendChild(wrapper);
+
+                if (currentMode === "story") {
+                    drawWithPadding(ctx, canvas, item.img, STORY_WIDTH, STORY_HEIGHT);
+                } else {
+                    drawFeedImage(ctx, canvas, item.img);
+                }
+
+                compressAndShowSize(canvas, infoDiv, downloadBtn, index);
             });
-        });
-
-        function drawImage() {
-            if (!loadedImage) return;
-
-            if (currentMode === "story") {
-                drawWithPadding(loadedImage, STORY_WIDTH, STORY_HEIGHT);
-            } else {
-                drawFeedImage(loadedImage);
-            }
-
-            canvas.style.display = "block";
-            downloadBtn.style.display = "block";
-            compressAndShowSize();
         }
 
-        // 공통: 여백 자리에 같은 사진을 확대+블러해서 배경으로 채우는 함수
-        function drawBlurredBackground(img, canvasW, canvasH) {
-            // 프레임을 꽉 채우도록 확대 (블러 가장자리가 비치지 않게 약간 더 키움)
+        function drawBlurredBackground(ctx, img, canvasW, canvasH) {
             const coverScale = Math.max(canvasW / img.width, canvasH / img.height) * 1.15;
             const bgWidth = img.width * coverScale;
             const bgHeight = img.height * coverScale;
@@ -204,50 +246,45 @@
             ctx.save();
             ctx.filter = "blur(25px)";
             ctx.drawImage(img, bgX, bgY, bgWidth, bgHeight);
-            ctx.restore(); // 블러 효과를 다음 그리기에 영향 안 주게 원상복구
+            ctx.restore();
         }
 
-        // 피드용: 566~1350 범위 안에서는 원본 비율 그대로, 벗어나면 블러 배경으로 채움
-        function drawFeedImage(img) {
+        function drawFeedImage(ctx, canvas, img) {
             const naturalHeight = (img.height / img.width) * FEED_WIDTH;
 
             if (naturalHeight >= FEED_MIN_HEIGHT && naturalHeight <= FEED_MAX_HEIGHT) {
-                // 범위 안: 자르지도, 여백도 없이 그대로
                 canvas.width = FEED_WIDTH;
                 canvas.height = Math.round(naturalHeight);
                 ctx.drawImage(img, 0, 0, FEED_WIDTH, canvas.height);
 
             } else if (naturalHeight < FEED_MIN_HEIGHT) {
-                // 너무 가로로 긴 사진: 높이를 최소값으로 맞추고 위아래는 블러 배경
                 canvas.width = FEED_WIDTH;
                 canvas.height = FEED_MIN_HEIGHT;
 
-                drawBlurredBackground(img, canvas.width, canvas.height);
+                drawBlurredBackground(ctx, img, canvas.width, canvas.height);
 
                 const offsetY = (FEED_MIN_HEIGHT - naturalHeight) / 2;
                 ctx.drawImage(img, 0, offsetY, FEED_WIDTH, naturalHeight);
 
             } else {
-                // 너무 세로로 긴 사진: 높이를 최대값으로 맞추고 좌우는 블러 배경
                 const scale = FEED_MAX_HEIGHT / img.height;
                 const drawWidth = img.width * scale;
 
                 canvas.width = FEED_WIDTH;
                 canvas.height = FEED_MAX_HEIGHT;
 
-                drawBlurredBackground(img, canvas.width, canvas.height);
+                drawBlurredBackground(ctx, img, canvas.width, canvas.height);
 
                 const offsetX = (FEED_WIDTH - drawWidth) / 2;
                 ctx.drawImage(img, offsetX, 0, drawWidth, FEED_MAX_HEIGHT);
             }
         }
 
-        // 스토리용: 고정 비율(9:16)이라 벗어나는 부분은 블러 배경으로 채움
-        function drawWithPadding(img, targetW, targetH) {
+        function drawWithPadding(ctx, canvas, img, targetW, targetH) {
             canvas.width = targetW;
             canvas.height = targetH;
 
-            drawBlurredBackground(img, targetW, targetH);
+            drawBlurredBackground(ctx, img, targetW, targetH);
 
             const scale = Math.min(targetW / img.width, targetH / img.height);
             const drawWidth = img.width * scale;
@@ -258,24 +295,7 @@
             ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
         }
 
-        // 스토리용: 고정 비율(9:16)이라 벗어나는 부분은 항상 여백으로 채움
-        function drawWithPadding(img, targetW, targetH) {
-            canvas.width = targetW;
-            canvas.height = targetH;
-
-            drawBlurredBackground(img, targetW, targetH);
-
-            const scale = Math.min(targetW / img.width, targetH / img.height);
-            const drawWidth = img.width * scale;
-            const drawHeight = img.height * scale;
-            const offsetX = (targetW - drawWidth) / 2;
-            const offsetY = (targetH - drawHeight) / 2;
-
-            ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-        }
-
-        // 용량이 목표치 이하가 될 때까지 화질을 낮춰가며 압축
-        function compressAndShowSize(targetSizeKB = 2000) {
+        function compressAndShowSize(canvas, infoDiv, downloadBtn, index, targetSizeKB = 2000) {
             let quality = 0.92;
 
             function tryCompress() {
@@ -287,10 +307,10 @@
                         tryCompress();
                     } else {
                         infoDiv.textContent =
-                            `결과 크기: ${canvas.width}×${canvas.height}px · 예상 용량: 약 ${Math.round(sizeKB)}KB (화질 ${Math.round(quality * 100)}%)`;
+                            `${canvas.width}×${canvas.height}px · 약 ${Math.round(sizeKB)}KB (화질 ${Math.round(quality * 100)}%)`;
                         downloadBtn.onclick = function () {
                             const link = document.createElement("a");
-                            link.download = "instagram-resized.jpg";
+                            link.download = `instagram-resized-${index + 1}.jpg`;
                             link.href = URL.createObjectURL(blob);
                             link.click();
                         };
