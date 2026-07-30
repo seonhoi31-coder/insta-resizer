@@ -1,103 +1,129 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>인스타 이미지 크기조절</title>
+    <title>인스타 이미지 리사이저</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
             margin: 0;
             font-family: 'Georgia', serif;
-            background-color: #faf7f2;
-            color: #2b2b2b;
+            background-color: #eef6ee;
+            color: #234032;
             padding: 40px 20px;
         }
-        .container {
-            max-width: 700px;
-            margin: 0 auto;
-        }
+        .container { max-width: 700px; margin: 0 auto; }
         h1 { font-size: 24px; margin-bottom: 20px; }
         .section {
-            background-color: #f0ebe1;
+            background-color: #ffffff;
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(76, 175, 125, 0.08);
         }
-        .size-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 15px;
-        }
+        .size-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
         .size-buttons button {
             flex: 1 1 40%;
             padding: 12px;
-            background-color: #d8cdb8;
-            color: #2b2b2b;
+            background-color: #dff0e2;
+            color: #234032;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
         }
-        .size-buttons button.active {
-            background-color: #8a7a5c;
-            color: white;
-        }
-        .size-buttons button:hover { background-color: #c9bda3; }
+        .size-buttons button.active { background-color: #4caf7d; color: white; }
+        .size-buttons button:hover { background-color: #c7e8cf; }
 
         #dropZone {
-            border: 2px dashed #c9bda3;
+            border: 2px dashed #a8dab8;
             border-radius: 8px;
             padding: 30px;
             text-align: center;
-            color: #888;
+            color: #5a7a68;
         }
         #dropZone p { margin: 0 0 12px 0; }
         #dropZone .file-label {
             display: inline-block;
             padding: 10px 18px;
-            background-color: #8a7a5c;
+            background-color: #4caf7d;
             color: white;
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
         }
-        #dropZone .limit-note { font-size: 12px; margin-top: 10px; color: #999; }
+        #dropZone .limit-note { font-size: 12px; margin-top: 10px; color: #8fae9c; }
 
-        .results {
-            margin-top: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .result-item {
-            background-color: white;
-            border-radius: 8px;
-            padding: 15px;
+        .results { margin-top: 20px; display: flex; flex-direction: column; gap: 20px; }
+        .result-item { background-color: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 10px rgba(76, 175, 125, 0.08); }
+
+        .canvas-scroll {
+            position: relative;
+            display: block;
         }
         .result-item canvas {
-            max-width: 100%;
-            border-radius: 6px;
             display: block;
-            margin: 0 auto;
+            width: 100%;
+            height: auto;
         }
-        .result-item .info {
-            margin-top: 8px;
+        .brush-cursor {
+            position: absolute;
+            border: 2px solid rgba(76, 175, 125, 0.85);
+            background-color: rgba(76, 175, 125, 0.15);
+            border-radius: 50%;
+            pointer-events: none;
+            display: none;
+        }
+
+        .edit-tools {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .tool-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .tool-row label { font-size: 12px; color: #5a7a68; white-space: nowrap; }
+        .tool-row input[type="text"] {
+            flex: 1 1 140px;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #cfe8d7;
+        }
+        .tool-row input[type="range"] { flex: 1 1 100px; accent-color: #4caf7d; }
+        .tool-row input[type="color"] {
+            width: 36px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            padding: 0;
+        }
+        .tool-row button {
+            padding: 8px 12px;
+            background-color: #dff0e2;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
             font-size: 13px;
-            color: #666;
-            text-align: center;
+            color: #234032;
         }
+        .tool-row button.active { background-color: #4caf7d; color: white; }
+        .tool-row button:hover { background-color: #c7e8cf; }
+        .tool-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .tool-row button.danger { background-color: #f3d9d3; }
+        .tool-row button.danger:hover { background-color: #ecc4bb; }
+
+        .result-item .info { margin-top: 8px; font-size: 13px; color: #5a7a68; text-align: center; }
         .result-item .download-btn {
             width: 100%;
             margin-top: 10px;
             padding: 10px;
-            background-color: #8a7a5c;
+            background-color: #4caf7d;
             color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
         }
-        .result-item .download-btn:hover { background-color: #75674d; }
+        .result-item .download-btn:hover { background-color: #3d9367; }
 
         @media (max-width: 600px) {
             body { padding: 20px 15px; }
@@ -113,7 +139,7 @@
         <div class="section">
             <div class="size-buttons">
                 <button id="btn-feed" data-mode="feed" class="active">피드 게시물</button>
-                <button id="btn-story" data-mode="story">스토리</button>
+                <button id="btn-story" data-mode="story">스토리 / 릴스</button>
             </div>
 
             <div id="dropZone" style="margin-top: 15px;">
@@ -135,13 +161,14 @@
 
         const MAX_FILES = 5;
         let currentMode = "feed";
-        let loadedImages = []; // { img, fileName } 목록
+        let loadedImages = [];
 
         const FEED_WIDTH = 1080;
         const FEED_MIN_HEIGHT = 566;
         const FEED_MAX_HEIGHT = 1350;
         const STORY_WIDTH = 1080;
         const STORY_HEIGHT = 1920;
+        const MAX_HISTORY = 20;
 
         sizeButtons.forEach(function (btn) {
             btn.addEventListener("click", function () {
@@ -154,12 +181,10 @@
 
         function loadImageFiles(fileList) {
             const files = Array.from(fileList).filter(f => f.type.startsWith("image/"));
-
             if (files.length === 0) {
                 alert("이미지 파일만 업로드할 수 있어요.");
                 return;
             }
-
             if (files.length > MAX_FILES) {
                 alert(`한 번에 최대 ${MAX_FILES}장까지만 처리할 수 있어요. 처음 ${MAX_FILES}장만 사용할게요.`);
             }
@@ -173,7 +198,7 @@
                 reader.onload = function (e) {
                     const img = new Image();
                     img.onload = function () {
-                        loadedImages.push({ img: img, fileName: file.name });
+                        loadedImages.push({ img: img });
                         renderAll();
                     };
                     img.src = e.target.result;
@@ -182,21 +207,17 @@
             });
         }
 
-        imageInput.addEventListener("change", function () {
-            loadImageFiles(imageInput.files);
-        });
+        imageInput.addEventListener("change", function () { loadImageFiles(imageInput.files); });
 
         dropZone.addEventListener("dragover", function (e) {
             e.preventDefault();
             dropZone.style.backgroundColor = "#e4dcc9";
             dropZone.style.borderColor = "#8a7a5c";
         });
-
         dropZone.addEventListener("dragleave", function () {
             dropZone.style.backgroundColor = "";
             dropZone.style.borderColor = "#c9bda3";
         });
-
         dropZone.addEventListener("drop", function (e) {
             e.preventDefault();
             dropZone.style.backgroundColor = "";
@@ -211,8 +232,89 @@
                 const wrapper = document.createElement("div");
                 wrapper.className = "result-item";
 
+                const scrollWrapper = document.createElement("div");
+                scrollWrapper.className = "canvas-scroll";
+
                 const canvas = document.createElement("canvas");
                 const ctx = canvas.getContext("2d");
+
+                const brushCursor = document.createElement("div");
+                brushCursor.className = "brush-cursor";
+
+                scrollWrapper.appendChild(canvas);
+                scrollWrapper.appendChild(brushCursor);
+
+                const state = {
+                    baseCanvas: document.createElement("canvas"),
+                    texts: [],
+                    selectedText: null,
+                    textHistory: [],
+                    blurHistory: []
+                };
+
+                // ---- 도구 UI ----
+                const toolsDiv = document.createElement("div");
+                toolsDiv.className = "edit-tools";
+
+                const textRow = document.createElement("div");
+                textRow.className = "tool-row";
+                const textInput = document.createElement("input");
+                textInput.type = "text";
+                textInput.placeholder = "텍스트 입력 후 추가";
+                const addTextBtn = document.createElement("button");
+                addTextBtn.textContent = "텍스트 추가";
+                const deleteTextBtn = document.createElement("button");
+                deleteTextBtn.textContent = "선택 텍스트 삭제";
+                deleteTextBtn.className = "danger";
+                const undoTextBtn = document.createElement("button");
+                undoTextBtn.textContent = "텍스트 되돌리기";
+                undoTextBtn.disabled = true;
+                textRow.appendChild(textInput);
+                textRow.appendChild(addTextBtn);
+                textRow.appendChild(deleteTextBtn);
+                textRow.appendChild(undoTextBtn);
+
+                const textStyleRow = document.createElement("div");
+                textStyleRow.className = "tool-row";
+                const sizeLabel = document.createElement("label");
+                sizeLabel.textContent = "글자 크기";
+                const sizeSlider = document.createElement("input");
+                sizeSlider.type = "range";
+                sizeSlider.min = "20";
+                sizeSlider.max = "160";
+                sizeSlider.value = "60";
+                const colorLabel = document.createElement("label");
+                colorLabel.textContent = "색상";
+                const colorPicker = document.createElement("input");
+                colorPicker.type = "color";
+                colorPicker.value = "#ffffff";
+                textStyleRow.appendChild(sizeLabel);
+                textStyleRow.appendChild(sizeSlider);
+                textStyleRow.appendChild(colorLabel);
+                textStyleRow.appendChild(colorPicker);
+
+                const blurRow = document.createElement("div");
+                blurRow.className = "tool-row";
+                const blurToggleBtn = document.createElement("button");
+                blurToggleBtn.textContent = "블러 브러시";
+                const brushLabel = document.createElement("label");
+                brushLabel.textContent = "브러시 크기";
+                const brushSlider = document.createElement("input");
+                brushSlider.type = "range";
+                brushSlider.min = "10";
+                brushSlider.max = "100";
+                brushSlider.value = "35";
+                const undoBlurBtn = document.createElement("button");
+                undoBlurBtn.textContent = "블러 되돌리기";
+                undoBlurBtn.disabled = true;
+                blurRow.appendChild(blurToggleBtn);
+                blurRow.appendChild(brushLabel);
+                blurRow.appendChild(brushSlider);
+                blurRow.appendChild(undoBlurBtn);
+
+                toolsDiv.appendChild(textRow);
+                toolsDiv.appendChild(textStyleRow);
+                toolsDiv.appendChild(blurRow);
 
                 const infoDiv = document.createElement("div");
                 infoDiv.className = "info";
@@ -221,19 +323,295 @@
                 downloadBtn.className = "download-btn";
                 downloadBtn.textContent = "다운로드";
 
-                wrapper.appendChild(canvas);
+                wrapper.appendChild(scrollWrapper);
+                wrapper.appendChild(toolsDiv);
                 wrapper.appendChild(infoDiv);
                 wrapper.appendChild(downloadBtn);
                 resultsDiv.appendChild(wrapper);
 
+                // ---- 초기 그리기 ----
                 if (currentMode === "story") {
-                    drawWithPadding(ctx, canvas, item.img, STORY_WIDTH, STORY_HEIGHT);
+                    drawWithPadding(state.baseCanvas, item.img, STORY_WIDTH, STORY_HEIGHT);
                 } else {
-                    drawFeedImage(ctx, canvas, item.img);
+                    drawFeedImage(state.baseCanvas, item.img);
+                }
+                canvas.width = state.baseCanvas.width;
+                canvas.height = state.baseCanvas.height;
+
+                function renderComposite() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(state.baseCanvas, 0, 0);
+                    state.texts.forEach(function (t) { drawTextObject(ctx, t); });
                 }
 
+                renderComposite();
                 compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+
+                // CSS의 width:100%가 자동으로 컨테이너에 꽉 차게, height:auto가 비율을 그대로 유지해줌
+
+                // ---- 텍스트 되돌리기 (텍스트 목록만 다룸) ----
+                function pushTextHistory() {
+                    const textsCopy = state.texts.map(t => Object.assign({}, t));
+                    state.textHistory.push(textsCopy);
+                    if (state.textHistory.length > MAX_HISTORY) state.textHistory.shift();
+                    undoTextBtn.disabled = false;
+                }
+
+                undoTextBtn.addEventListener("click", function () {
+                    if (state.textHistory.length === 0) return;
+                    state.texts = state.textHistory.pop();
+                    state.selectedText = null;
+                    renderComposite();
+                    compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+                    if (state.textHistory.length === 0) undoTextBtn.disabled = true;
+                });
+
+                // ---- 블러 되돌리기 (사진 픽셀만 다룸) ----
+                function pushBlurHistory() {
+                    const clone = document.createElement("canvas");
+                    clone.width = state.baseCanvas.width;
+                    clone.height = state.baseCanvas.height;
+                    clone.getContext("2d").drawImage(state.baseCanvas, 0, 0);
+                    state.blurHistory.push(clone);
+                    if (state.blurHistory.length > MAX_HISTORY) state.blurHistory.shift();
+                    undoBlurBtn.disabled = false;
+                }
+
+                undoBlurBtn.addEventListener("click", function () {
+                    if (state.blurHistory.length === 0) return;
+                    const prev = state.blurHistory.pop();
+                    const bctx = state.baseCanvas.getContext("2d");
+                    bctx.clearRect(0, 0, state.baseCanvas.width, state.baseCanvas.height);
+                    bctx.drawImage(prev, 0, 0);
+                    renderComposite();
+                    compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+                    if (state.blurHistory.length === 0) undoBlurBtn.disabled = true;
+                });
+
+                // ---- 텍스트 추가 ----
+                addTextBtn.addEventListener("click", function () {
+                    const text = textInput.value.trim();
+                    if (!text) return;
+
+                    pushTextHistory();
+
+                    const newText = {
+                        text: text,
+                        x: canvas.width / 2,
+                        y: canvas.height / 2,
+                        fontSize: parseInt(sizeSlider.value),
+                        color: colorPicker.value
+                    };
+                    state.texts.push(newText);
+                    state.selectedText = newText;
+                    textInput.value = "";
+                    renderComposite();
+                    compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+                });
+
+                // ---- 선택 텍스트 완전 삭제 ----
+                deleteTextBtn.addEventListener("click", function () {
+                    if (!state.selectedText) {
+                        alert("삭제할 텍스트를 먼저 클릭해서 선택해주세요.");
+                        return;
+                    }
+                    pushTextHistory();
+                    state.texts = state.texts.filter(t => t !== state.selectedText);
+                    state.selectedText = null;
+                    renderComposite();
+                    compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+                });
+
+                // ---- 크기/색 슬라이더: 선택된 텍스트에 실시간 반영 ----
+                let styleHistorySaved = false;
+
+                function markStyleInteractionStart() {
+                    if (!state.selectedText) return;
+                    if (!styleHistorySaved) {
+                        pushTextHistory();
+                        styleHistorySaved = true;
+                    }
+                }
+
+                sizeSlider.addEventListener("mousedown", markStyleInteractionStart);
+                sizeSlider.addEventListener("touchstart", markStyleInteractionStart);
+                sizeSlider.addEventListener("input", function () {
+                    if (!state.selectedText) return;
+                    state.selectedText.fontSize = parseInt(sizeSlider.value);
+                    renderComposite();
+                });
+                sizeSlider.addEventListener("change", function () {
+                    styleHistorySaved = false;
+                    compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+                });
+
+                colorPicker.addEventListener("mousedown", markStyleInteractionStart);
+                colorPicker.addEventListener("input", function () {
+                    if (!state.selectedText) return;
+                    state.selectedText.color = colorPicker.value;
+                    renderComposite();
+                });
+                colorPicker.addEventListener("change", function () {
+                    styleHistorySaved = false;
+                    compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+                });
+
+                // ---- 블러 브러시 토글 ----
+                let blurModeOn = false;
+                blurToggleBtn.addEventListener("click", function () {
+                    blurModeOn = !blurModeOn;
+                    blurToggleBtn.classList.toggle("active", blurModeOn);
+                    canvas.style.cursor = blurModeOn ? "none" : "grab";
+                    if (!blurModeOn) brushCursor.style.display = "none";
+                });
+
+                function getCanvasPos(e) {
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    return {
+                        x: (e.clientX - rect.left) * scaleX,
+                        y: (e.clientY - rect.top) * scaleY
+                    };
+                }
+
+                // 브러시 모양 커서를 마우스 위치에 맞게 표시
+                function updateBrushCursor(e) {
+                    if (!blurModeOn) { brushCursor.style.display = "none"; return; }
+
+                    const wrapperRect = scrollWrapper.getBoundingClientRect();
+                    const canvasRect = canvas.getBoundingClientRect();
+                    const screenScale = canvasRect.width / canvas.width;
+                    const radius = parseInt(brushSlider.value);
+                    const screenDiameter = radius * 2 * screenScale;
+
+                    const left = (e.clientX - wrapperRect.left) + scrollWrapper.scrollLeft - screenDiameter / 2;
+                    const top = (e.clientY - wrapperRect.top) + scrollWrapper.scrollTop - screenDiameter / 2;
+
+                    brushCursor.style.width = screenDiameter + "px";
+                    brushCursor.style.height = screenDiameter + "px";
+                    brushCursor.style.left = left + "px";
+                    brushCursor.style.top = top + "px";
+                    brushCursor.style.display = "block";
+                }
+
+                let draggingText = null;
+                let dragOffsetX = 0, dragOffsetY = 0;
+                let isPaintingBlur = false;
+                let dragHistorySaved = false;
+                let blurHistorySavedThisStroke = false;
+
+                function findTextAt(pos) {
+                    for (let i = state.texts.length - 1; i >= 0; i--) {
+                        const t = state.texts[i];
+                        ctx.font = `bold ${t.fontSize}px sans-serif`;
+                        const width = ctx.measureText(t.text).width;
+                        const halfW = width / 2 + 10;
+                        const halfH = t.fontSize / 2 + 10;
+                        if (
+                            pos.x >= t.x - halfW && pos.x <= t.x + halfW &&
+                            pos.y >= t.y - halfH && pos.y <= t.y + halfH
+                        ) {
+                            return t;
+                        }
+                    }
+                    return null;
+                }
+
+                canvas.addEventListener("mousedown", function (e) {
+                    const pos = getCanvasPos(e);
+
+                    if (blurModeOn) {
+                        isPaintingBlur = true;
+                        blurHistorySavedThisStroke = false;
+                        pushBlurHistory();
+                        blurHistorySavedThisStroke = true;
+                        paintBlurStamp(state.baseCanvas, pos.x, pos.y, parseInt(brushSlider.value));
+                        renderComposite();
+                        return;
+                    }
+
+                    const hit = findTextAt(pos);
+                    if (hit) {
+                        dragHistorySaved = false;
+                        if (!dragHistorySaved) { pushTextHistory(); dragHistorySaved = true; }
+                        draggingText = hit;
+                        state.selectedText = hit;
+                        sizeSlider.value = hit.fontSize;
+                        colorPicker.value = hit.color;
+                        dragOffsetX = pos.x - hit.x;
+                        dragOffsetY = pos.y - hit.y;
+                        canvas.style.cursor = "grabbing";
+                    }
+                });
+
+                canvas.addEventListener("mousemove", function (e) {
+                    updateBrushCursor(e);
+                    const pos = getCanvasPos(e);
+
+                    if (isPaintingBlur) {
+                        paintBlurStamp(state.baseCanvas, pos.x, pos.y, parseInt(brushSlider.value));
+                        renderComposite();
+                        return;
+                    }
+
+                    if (draggingText) {
+                        draggingText.x = pos.x - dragOffsetX;
+                        draggingText.y = pos.y - dragOffsetY;
+                        renderComposite();
+                    }
+                });
+
+                canvas.addEventListener("mouseenter", updateBrushCursor);
+
+                function stopInteraction() {
+                    const wasActive = draggingText || isPaintingBlur;
+                    draggingText = null;
+                    isPaintingBlur = false;
+                    canvas.style.cursor = blurModeOn ? "none" : "grab";
+                    if (wasActive) {
+                        compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+                    }
+                }
+
+                canvas.addEventListener("mouseup", stopInteraction);
+                canvas.addEventListener("mouseleave", function () {
+                    stopInteraction();
+                    brushCursor.style.display = "none";
+                });
             });
+        }
+
+        function paintBlurStamp(baseCanvas, x, y, radius) {
+            const ctx = baseCanvas.getContext("2d");
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = baseCanvas.width;
+            tempCanvas.height = baseCanvas.height;
+            const tempCtx = tempCanvas.getContext("2d");
+
+            tempCtx.filter = `blur(${Math.max(6, radius * 0.4)}px)`;
+            tempCtx.drawImage(baseCanvas, 0, 0);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(tempCanvas, 0, 0);
+            ctx.restore();
+        }
+
+        function drawTextObject(ctx, t) {
+            ctx.font = `bold ${t.fontSize}px sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            ctx.lineJoin = "round";
+            ctx.lineWidth = t.fontSize * 0.1;
+            ctx.strokeStyle = t.color;
+            ctx.strokeText(t.text, t.x, t.y);
+
+            ctx.fillStyle = t.color;
+            ctx.fillText(t.text, t.x, t.y);
         }
 
         function drawBlurredBackground(ctx, img, canvasW, canvasH) {
@@ -249,41 +627,35 @@
             ctx.restore();
         }
 
-        function drawFeedImage(ctx, canvas, img) {
+        function drawFeedImage(baseCanvas, img) {
+            const ctx = baseCanvas.getContext("2d");
             const naturalHeight = (img.height / img.width) * FEED_WIDTH;
 
             if (naturalHeight >= FEED_MIN_HEIGHT && naturalHeight <= FEED_MAX_HEIGHT) {
-                canvas.width = FEED_WIDTH;
-                canvas.height = Math.round(naturalHeight);
-                ctx.drawImage(img, 0, 0, FEED_WIDTH, canvas.height);
-
+                baseCanvas.width = FEED_WIDTH;
+                baseCanvas.height = Math.round(naturalHeight);
+                ctx.drawImage(img, 0, 0, FEED_WIDTH, baseCanvas.height);
             } else if (naturalHeight < FEED_MIN_HEIGHT) {
-                canvas.width = FEED_WIDTH;
-                canvas.height = FEED_MIN_HEIGHT;
-
-                drawBlurredBackground(ctx, img, canvas.width, canvas.height);
-
+                baseCanvas.width = FEED_WIDTH;
+                baseCanvas.height = FEED_MIN_HEIGHT;
+                drawBlurredBackground(ctx, img, baseCanvas.width, baseCanvas.height);
                 const offsetY = (FEED_MIN_HEIGHT - naturalHeight) / 2;
                 ctx.drawImage(img, 0, offsetY, FEED_WIDTH, naturalHeight);
-
             } else {
                 const scale = FEED_MAX_HEIGHT / img.height;
                 const drawWidth = img.width * scale;
-
-                canvas.width = FEED_WIDTH;
-                canvas.height = FEED_MAX_HEIGHT;
-
-                drawBlurredBackground(ctx, img, canvas.width, canvas.height);
-
+                baseCanvas.width = FEED_WIDTH;
+                baseCanvas.height = FEED_MAX_HEIGHT;
+                drawBlurredBackground(ctx, img, baseCanvas.width, baseCanvas.height);
                 const offsetX = (FEED_WIDTH - drawWidth) / 2;
                 ctx.drawImage(img, offsetX, 0, drawWidth, FEED_MAX_HEIGHT);
             }
         }
 
-        function drawWithPadding(ctx, canvas, img, targetW, targetH) {
-            canvas.width = targetW;
-            canvas.height = targetH;
-
+        function drawWithPadding(baseCanvas, img, targetW, targetH) {
+            const ctx = baseCanvas.getContext("2d");
+            baseCanvas.width = targetW;
+            baseCanvas.height = targetH;
             drawBlurredBackground(ctx, img, targetW, targetH);
 
             const scale = Math.min(targetW / img.width, targetH / img.height);
@@ -301,7 +673,6 @@
             function tryCompress() {
                 canvas.toBlob(function (blob) {
                     const sizeKB = blob.size / 1024;
-
                     if (sizeKB > targetSizeKB && quality > 0.3) {
                         quality -= 0.08;
                         tryCompress();
@@ -317,7 +688,6 @@
                     }
                 }, "image/jpeg", quality);
             }
-
             tryCompress();
         }
     </script>
