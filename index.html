@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>인스타 맞춤 이미지 크기조절</title>
+    <title>인스타 이미지 리사이저</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -64,6 +64,7 @@
             display: block;
             width: 100%;
             height: auto;
+            touch-action: none;
         }
         .brush-cursor {
             position: absolute;
@@ -134,12 +135,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>인스타 맞춤 이미지 크기조절</h1>
+        <h1>인스타 이미지 리사이저</h1>
 
         <div class="section">
             <div class="size-buttons">
                 <button id="btn-feed" data-mode="feed" class="active">피드 게시물</button>
-                <button id="btn-story" data-mode="story">스토리</button>
+                <button id="btn-story" data-mode="story">스토리 / 릴스</button>
             </div>
 
             <div id="dropZone" style="margin-top: 15px;">
@@ -288,10 +289,31 @@
                 const colorPicker = document.createElement("input");
                 colorPicker.type = "color";
                 colorPicker.value = "#ffffff";
+                const fontLabel = document.createElement("label");
+                fontLabel.textContent = "폰트";
+                const fontSelect = document.createElement("select");
+                fontSelect.style.padding = "6px";
+                fontSelect.style.borderRadius = "6px";
+                fontSelect.style.border = "1px solid #cfe8d7";
+                const fontOptions = [
+                    { value: "sans-serif", label: "고딕 (기본)" },
+                    { value: "serif", label: "명조" },
+                    { value: "monospace", label: "타자기체" },
+                    { value: "cursive", label: "손글씨체" },
+                    { value: "fantasy", label: "장식체" }
+                ];
+                fontOptions.forEach(function (opt) {
+                    const o = document.createElement("option");
+                    o.value = opt.value;
+                    o.textContent = opt.label;
+                    fontSelect.appendChild(o);
+                });
                 textStyleRow.appendChild(sizeLabel);
                 textStyleRow.appendChild(sizeSlider);
                 textStyleRow.appendChild(colorLabel);
                 textStyleRow.appendChild(colorPicker);
+                textStyleRow.appendChild(fontLabel);
+                textStyleRow.appendChild(fontSelect);
 
                 const blurRow = document.createElement("div");
                 blurRow.className = "tool-row";
@@ -400,7 +422,8 @@
                         x: canvas.width / 2,
                         y: canvas.height / 2,
                         fontSize: parseInt(sizeSlider.value),
-                        color: colorPicker.value
+                        color: colorPicker.value,
+                        font: fontSelect.value
                     };
                     state.texts.push(newText);
                     state.selectedText = newText;
@@ -456,6 +479,17 @@
                     compressAndShowSize(canvas, infoDiv, downloadBtn, index);
                 });
 
+                fontSelect.addEventListener("mousedown", markStyleInteractionStart);
+                fontSelect.addEventListener("touchstart", markStyleInteractionStart);
+                fontSelect.addEventListener("change", function () {
+                    if (state.selectedText) {
+                        state.selectedText.font = fontSelect.value;
+                        renderComposite();
+                    }
+                    styleHistorySaved = false;
+                    compressAndShowSize(canvas, infoDiv, downloadBtn, index);
+                });
+
                 // ---- 블러 브러시 토글 ----
                 let blurModeOn = false;
                 blurToggleBtn.addEventListener("click", function () {
@@ -465,28 +499,41 @@
                     if (!blurModeOn) brushCursor.style.display = "none";
                 });
 
+                // 마우스 이벤트든 터치 이벤트든 같은 방식으로 좌표를 뽑아내는 함수
+                function getEventXY(e) {
+                    if (e.touches && e.touches.length > 0) {
+                        return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+                    }
+                    if (e.changedTouches && e.changedTouches.length > 0) {
+                        return { clientX: e.changedTouches[0].clientX, clientY: e.changedTouches[0].clientY };
+                    }
+                    return { clientX: e.clientX, clientY: e.clientY };
+                }
+
                 function getCanvasPos(e) {
+                    const xy = getEventXY(e);
                     const rect = canvas.getBoundingClientRect();
                     const scaleX = canvas.width / rect.width;
                     const scaleY = canvas.height / rect.height;
                     return {
-                        x: (e.clientX - rect.left) * scaleX,
-                        y: (e.clientY - rect.top) * scaleY
+                        x: (xy.clientX - rect.left) * scaleX,
+                        y: (xy.clientY - rect.top) * scaleY
                     };
                 }
 
-                // 브러시 모양 커서를 마우스 위치에 맞게 표시
+                // 브러시 모양 커서를 마우스/터치 위치에 맞게 표시
                 function updateBrushCursor(e) {
                     if (!blurModeOn) { brushCursor.style.display = "none"; return; }
 
+                    const xy = getEventXY(e);
                     const wrapperRect = scrollWrapper.getBoundingClientRect();
                     const canvasRect = canvas.getBoundingClientRect();
                     const screenScale = canvasRect.width / canvas.width;
                     const radius = parseInt(brushSlider.value);
                     const screenDiameter = radius * 2 * screenScale;
 
-                    const left = (e.clientX - wrapperRect.left) + scrollWrapper.scrollLeft - screenDiameter / 2;
-                    const top = (e.clientY - wrapperRect.top) + scrollWrapper.scrollTop - screenDiameter / 2;
+                    const left = (xy.clientX - wrapperRect.left) + scrollWrapper.scrollLeft - screenDiameter / 2;
+                    const top = (xy.clientY - wrapperRect.top) + scrollWrapper.scrollTop - screenDiameter / 2;
 
                     brushCursor.style.width = screenDiameter + "px";
                     brushCursor.style.height = screenDiameter + "px";
@@ -504,7 +551,7 @@
                 function findTextAt(pos) {
                     for (let i = state.texts.length - 1; i >= 0; i--) {
                         const t = state.texts[i];
-                        ctx.font = `bold ${t.fontSize}px sans-serif`;
+                        ctx.font = `bold ${t.fontSize}px ${t.font || "sans-serif"}`;
                         const width = ctx.measureText(t.text).width;
                         const halfW = width / 2 + 10;
                         const halfH = t.fontSize / 2 + 10;
@@ -518,7 +565,7 @@
                     return null;
                 }
 
-                canvas.addEventListener("mousedown", function (e) {
+                function handlePointerDown(e) {
                     const pos = getCanvasPos(e);
 
                     if (blurModeOn) {
@@ -539,13 +586,14 @@
                         state.selectedText = hit;
                         sizeSlider.value = hit.fontSize;
                         colorPicker.value = hit.color;
+                        fontSelect.value = hit.font || "sans-serif";
                         dragOffsetX = pos.x - hit.x;
                         dragOffsetY = pos.y - hit.y;
                         canvas.style.cursor = "grabbing";
                     }
-                });
+                }
 
-                canvas.addEventListener("mousemove", function (e) {
+                function handlePointerMove(e) {
                     updateBrushCursor(e);
                     const pos = getCanvasPos(e);
 
@@ -560,7 +608,21 @@
                         draggingText.y = pos.y - dragOffsetY;
                         renderComposite();
                     }
-                });
+                }
+
+                canvas.addEventListener("mousedown", handlePointerDown);
+                canvas.addEventListener("mousemove", handlePointerMove);
+
+                // 모바일 터치 지원: 터치로 드래그할 때 화면 스크롤이 같이 되지 않도록 preventDefault 처리
+                canvas.addEventListener("touchstart", function (e) {
+                    if (blurModeOn || findTextAt(getCanvasPos(e))) e.preventDefault();
+                    handlePointerDown(e);
+                }, { passive: false });
+
+                canvas.addEventListener("touchmove", function (e) {
+                    if (isPaintingBlur || draggingText) e.preventDefault();
+                    handlePointerMove(e);
+                }, { passive: false });
 
                 canvas.addEventListener("mouseenter", updateBrushCursor);
 
@@ -579,6 +641,8 @@
                     stopInteraction();
                     brushCursor.style.display = "none";
                 });
+                canvas.addEventListener("touchend", stopInteraction);
+                canvas.addEventListener("touchcancel", stopInteraction);
             });
         }
 
@@ -601,7 +665,7 @@
         }
 
         function drawTextObject(ctx, t) {
-            ctx.font = `bold ${t.fontSize}px sans-serif`;
+            ctx.font = `bold ${t.fontSize}px ${t.font || "sans-serif"}`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
 
