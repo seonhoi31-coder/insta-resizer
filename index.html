@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>인스타 이미지 리사이저</title>
+    <title>인스타 이미지 맞춤 크기조절</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -135,12 +135,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>인스타 이미지 리사이저</h1>
+        <h1>인스타 이미지 맞춤 크기조절</h1>
 
         <div class="section">
             <div class="size-buttons">
-                <button id="btn-feed" data-mode="feed" class="active">피드 게시물</button>
-                <button id="btn-story" data-mode="story">스토리 / 릴스</button>
+                <button id="btn-square" data-mode="square" class="active">정사각형</button>
+                <button id="btn-portrait" data-mode="portrait">세로형 (4:5)</button>
             </div>
 
             <div id="dropZone" style="margin-top: 15px;">
@@ -161,14 +161,13 @@
         const sizeButtons = document.querySelectorAll(".size-buttons button");
 
         const MAX_FILES = 5;
-        let currentMode = "feed";
+        let currentMode = "square";
         let loadedImages = [];
 
-        const FEED_WIDTH = 1080;
-        const FEED_MIN_HEIGHT = 566;
-        const FEED_MAX_HEIGHT = 1350;
-        const STORY_WIDTH = 1080;
-        const STORY_HEIGHT = 1920;
+        const SQUARE_WIDTH = 1080;
+        const SQUARE_HEIGHT = 1080;
+        const PORTRAIT_WIDTH = 1080;
+        const PORTRAIT_HEIGHT = 1350;
         const MAX_HISTORY = 20;
 
         sizeButtons.forEach(function (btn) {
@@ -352,10 +351,10 @@
                 resultsDiv.appendChild(wrapper);
 
                 // ---- 초기 그리기 ----
-                if (currentMode === "story") {
-                    drawWithPadding(state.baseCanvas, item.img, STORY_WIDTH, STORY_HEIGHT);
+                if (currentMode === "portrait") {
+                    drawWithPadding(state.baseCanvas, item.img, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
                 } else {
-                    drawFeedImage(state.baseCanvas, item.img);
+                    drawWithPadding(state.baseCanvas, item.img, SQUARE_WIDTH, SQUARE_HEIGHT);
                 }
                 canvas.width = state.baseCanvas.width;
                 canvas.height = state.baseCanvas.height;
@@ -689,31 +688,6 @@
             ctx.filter = "blur(25px)";
             ctx.drawImage(img, bgX, bgY, bgWidth, bgHeight);
             ctx.restore();
-        }
-
-        function drawFeedImage(baseCanvas, img) {
-            const ctx = baseCanvas.getContext("2d");
-            const naturalHeight = (img.height / img.width) * FEED_WIDTH;
-
-            if (naturalHeight >= FEED_MIN_HEIGHT && naturalHeight <= FEED_MAX_HEIGHT) {
-                baseCanvas.width = FEED_WIDTH;
-                baseCanvas.height = Math.round(naturalHeight);
-                ctx.drawImage(img, 0, 0, FEED_WIDTH, baseCanvas.height);
-            } else if (naturalHeight < FEED_MIN_HEIGHT) {
-                baseCanvas.width = FEED_WIDTH;
-                baseCanvas.height = FEED_MIN_HEIGHT;
-                drawBlurredBackground(ctx, img, baseCanvas.width, baseCanvas.height);
-                const offsetY = (FEED_MIN_HEIGHT - naturalHeight) / 2;
-                ctx.drawImage(img, 0, offsetY, FEED_WIDTH, naturalHeight);
-            } else {
-                const scale = FEED_MAX_HEIGHT / img.height;
-                const drawWidth = img.width * scale;
-                baseCanvas.width = FEED_WIDTH;
-                baseCanvas.height = FEED_MAX_HEIGHT;
-                drawBlurredBackground(ctx, img, baseCanvas.width, baseCanvas.height);
-                const offsetX = (FEED_WIDTH - drawWidth) / 2;
-                ctx.drawImage(img, offsetX, 0, drawWidth, FEED_MAX_HEIGHT);
-            }
         }
 
         function drawWithPadding(baseCanvas, img, targetW, targetH) {
