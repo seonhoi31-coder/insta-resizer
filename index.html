@@ -141,6 +141,7 @@
             <div class="size-buttons">
                 <button id="btn-square" data-mode="square" class="active">정사각형</button>
                 <button id="btn-portrait" data-mode="portrait">세로형 (4:5)</button>
+                <button id="btn-reels" data-mode="reels">릴스 커버 (9:16)</button>
             </div>
 
             <div id="dropZone" style="margin-top: 15px;">
@@ -168,6 +169,8 @@
         const SQUARE_HEIGHT = 1080;
         const PORTRAIT_WIDTH = 1080;
         const PORTRAIT_HEIGHT = 1350;
+        const REELS_WIDTH = 1080;
+        const REELS_HEIGHT = 1920;
         const MAX_HISTORY = 20;
 
         sizeButtons.forEach(function (btn) {
@@ -358,6 +361,8 @@
                 // ---- 초기 그리기 ----
                 if (currentMode === "portrait") {
                     drawWithPadding(state.baseCanvas, item.img, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
+                } else if (currentMode === "reels") {
+                    drawWithPadding(state.baseCanvas, item.img, REELS_WIDTH, REELS_HEIGHT);
                 } else {
                     drawWithPadding(state.baseCanvas, item.img, SQUARE_WIDTH, SQUARE_HEIGHT);
                 }
